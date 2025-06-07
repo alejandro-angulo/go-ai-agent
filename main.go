@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/invopop/jsonschema"
+
+	"gocv.io/x/gocv"
 )
 
 func main() {
@@ -30,6 +33,7 @@ func main() {
 		ListFilesDefinition,
 		EditFileDefinition,
 		Base64EncodeFileDefinition,
+		WebcamDefinition,
 	}
 
 	agent := NewAgent(&client, getUserMessage, tools)
@@ -372,6 +376,53 @@ func Base64EncodeFile(input json.RawMessage) (string, error) {
 		return "", err
 	}
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
+
+	return encoded, nil
+}
+
+var WebcamDefinition = ToolDefinition{
+	Name: "webcam",
+	Description: `Take a picture using the computer's webcam.
+
+	This way you can see what the user sees and provide a description of what
+	you see.
+	`,
+	InputSchema: WebcamDefinitionInputSchema,
+	Function:    Webcam,
+}
+
+type WebcamDefinitionInput struct{}
+
+var WebcamDefinitionInputSchema = GenerateSchema[WebcamDefinitionInput]()
+
+func Webcam(input json.RawMessage) (string, error) {
+	webcam, err := gocv.OpenVideoCapture(0)
+	if err != nil {
+		return "", err
+	}
+	defer webcam.Close()
+
+	if !webcam.IsOpened() {
+		return "", errors.New("Unable to open video capture device")
+	}
+
+	img := gocv.NewMat()
+	defer img.Close()
+
+	if ok := webcam.Read(&img); !ok {
+		return "", errors.New("Cannot read from video capture device")
+	}
+
+	if img.Empty() {
+		return "", errors.New("Capture image is empty")
+	}
+
+	jpegData, err := gocv.IMEncode(".jpg", img)
+	if err != nil {
+		return "", err
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(jpegData.GetBytes())
 
 	return encoded, nil
 }

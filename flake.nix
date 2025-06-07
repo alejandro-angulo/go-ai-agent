@@ -41,6 +41,10 @@
                 # https://devenv.sh/reference/options/
                 languages.go.enable = true;
                 languages.javascript.enable = true;
+
+                packages = with pkgs; [
+                  opencv
+                ];
               }
             ];
           };
