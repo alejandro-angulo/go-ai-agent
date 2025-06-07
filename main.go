@@ -75,7 +75,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		for _, content := range message.Content {
 			switch content.Type {
 			case "text":
-				fmt.Printf("\u001b[93mClaude\u001b[0m: %s\n", content.Text)
+				print("\n")
 			case "tool_use":
 				result := a.executeTool(content.ID, content.Name, content.Input)
 				toolResults = append(toolResults, result)
@@ -106,7 +106,7 @@ func (a *Agent) executeTool(id, name string, input json.RawMessage) anthropic.Co
 		return anthropic.NewToolResultBlock(id, "tool not found", true)
 	}
 
-	fmt.Printf("\u001b[92mtool\u001b[0m: %s(%s)\n", name, input)
+	fmt.Printf("\n\u001b[92mtool\u001b[0m: %s(%s)\n", name, input)
 	response, err := toolDef.Function(input)
 	if err != nil {
 		return anthropic.NewToolResultBlock(id, err.Error(), true)
@@ -126,13 +126,32 @@ func (a *Agent) runInference(ctx context.Context, conversation []anthropic.Messa
 		})
 	}
 
-	message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
+	stream := a.client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7SonnetLatest,
 		MaxTokens: int64(1024),
 		Messages:  conversation,
 		Tools:     anthropicTools,
 	})
-	return message, err
+
+	print("\u001b[93mClaude\u001b[0m: ")
+	message := anthropic.Message{}
+	for stream.Next() {
+		event := stream.Current()
+		err := message.Accumulate(event)
+		if err != nil {
+			return nil, err
+		}
+
+		switch eventVariant := event.AsAny().(type) {
+		case anthropic.ContentBlockDeltaEvent:
+			switch deltaVariant := eventVariant.Delta.AsAny().(type) {
+			case anthropic.TextDelta:
+				print(deltaVariant.Text)
+			}
+		}
+	}
+
+	return &message, stream.Err()
 }
 
 type ToolDefinition struct {
