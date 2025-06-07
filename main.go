@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,7 +25,12 @@ func main() {
 		}
 		return scanner.Text(), true
 	}
-	tools := []ToolDefinition{ReadFileDefinition, ListFilesDefinition, EditFileDefinition}
+	tools := []ToolDefinition{
+		ReadFileDefinition,
+		ListFilesDefinition,
+		EditFileDefinition,
+		Base64EncodeFileDefinition,
+	}
 
 	agent := NewAgent(&client, getUserMessage, tools)
 	err := agent.Run(context.TODO())
@@ -335,4 +341,37 @@ func createNewFile(filePath, content string) (string, error) {
 	}
 
 	return fmt.Sprintf("Successfully created file %s", filePath), nil
+}
+
+var Base64EncodeFileDefinition = ToolDefinition{
+	Name: "base64_encode",
+	Description: `Generates a base64 encoding of a file.
+
+	This is especially useful when asked to describe an image file (you can use
+	this get a base64 encoded representation of the image file).
+`,
+	InputSchema: Base64EncodeFileInputSchema,
+	Function:    Base64EncodeFile,
+}
+
+type Base64EncodeFileInput struct {
+	Path string `json:"path" jsonschema_description:"The path to the image"`
+}
+
+var Base64EncodeFileInputSchema = GenerateSchema[EditFileInput]()
+
+func Base64EncodeFile(input json.RawMessage) (string, error) {
+	analyzeImageInput := Base64EncodeFileInput{}
+	err := json.Unmarshal(input, &analyzeImageInput)
+	if err != nil {
+		panic(err)
+	}
+
+	content, err := os.ReadFile(analyzeImageInput.Path)
+	if err != nil {
+		return "", err
+	}
+	encoded := base64.StdEncoding.EncodeToString([]byte(content))
+
+	return encoded, nil
 }
