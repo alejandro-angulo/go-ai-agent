@@ -402,8 +402,8 @@ func Webcam(input json.RawMessage) (string, error) {
 	}
 	defer webcam.Close()
 
-	webcam.Set(gocv.VideoCaptureFrameWidth, 1280.0)
-	webcam.Set(gocv.VideoCaptureFrameHeight, 720.0)
+	webcam.Set(gocv.VideoCaptureFrameWidth, 640.0)
+	webcam.Set(gocv.VideoCaptureFrameHeight, 360.0)
 
 	if !webcam.IsOpened() {
 		return "", errors.New("Unable to open video capture device")
