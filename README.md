@@ -38,7 +38,7 @@ Once it's installed you'll have to configure your shell. If you're using ZSH
 run the following:
 
 ```bash
-echo 'eval "$(direnv hook bash)"' >> ~/.zshrc
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
 ```
 
 NOTE: You'll have to start a new terminal session for the changes in `~/.zshrc`
